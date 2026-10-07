@@ -34,6 +34,23 @@ export function createService(db) {
   return {
     products() { return db.prepare('SELECT * FROM products ORDER BY id').all(); },
     baskets(days=28, options={}, now=new Date()) { return basketReport(db,days,options,now); },
+    salesTrend(days=28, now=new Date()) {
+      integer(days,1,90,'ช่วงย้อนหลัง');
+      const end=new Date(bangkokDate(now)+'T00:00:00+07:00');
+      const start=new Date(end.getTime()-days*86400_000);
+      const previous=new Date(start.getTime()-days*86400_000);
+      const totals=new Map(db.prepare(`SELECT date(created_at,'+7 hours') AS day,
+        SUM(total_cents) AS revenue, COUNT(*) AS bills FROM sales
+        WHERE created_at>=? AND created_at<? GROUP BY day`).all(previous.toISOString(),end.toISOString()).map(r=>[r.day,r]));
+      const points=Array.from({length:days},(_,i)=>{
+        const day=bangkokDate(new Date(start.getTime()+i*86400_000));
+        const previousDay=bangkokDate(new Date(previous.getTime()+i*86400_000));
+        return {day,previous_day:previousDay,revenue_cents:totals.get(day)?.revenue||0,
+          previous_revenue_cents:totals.get(previousDay)?.revenue||0,bills:totals.get(day)?.bills||0};
+      });
+      return {days,start_date:points[0].day,end_date:points.at(-1).day,
+        previous_start_date:points[0].previous_day,previous_end_date:points.at(-1).previous_day,points};
+    },
     recommendations(windowDays=28, now=new Date()) {
       integer(windowDays,1,90,'ช่วงย้อนหลัง');
       // Completed Bangkok calendar days only: zero-sale days stay in the denominator.
