@@ -13,7 +13,7 @@ export function makeServer(db){
     try{
       const url=new URL(req.url,'http://localhost');
       if(req.method==='GET' && !url.pathname.startsWith('/api/')){
-        const file={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}[url.pathname];
+        const file={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/basket-ui.js':'basket-ui.js'}[url.pathname];
         if(!file)return send(404,{error:'ไม่พบหน้า'});
         res.writeHead(200,{'Content-Type':file.endsWith('js')?'text/javascript; charset=utf-8':file.endsWith('css')?'text/css; charset=utf-8':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff'});
         return res.end(readFileSync(join(root,'public',file)));
@@ -21,6 +21,13 @@ export function makeServer(db){
       if(req.method==='GET'){
         if(url.pathname==='/api/products')return send(200,service.products());
         if(url.pathname==='/api/dashboard')return send(200,service.dashboard());
+        if(url.pathname==='/api/baskets'){
+          const options={};
+          for(const key of ['min_bills','min_pair_count','min_support','min_confidence','min_lift']){
+            if(url.searchParams.has(key))options[key]=Number(url.searchParams.get(key));
+          }
+          return send(200,service.baskets(Number(url.searchParams.get('days')||28),options));
+        }
         if(url.pathname==='/api/recommendations')return send(200,service.recommendations(Number(url.searchParams.get('days')||28)));
         if(url.pathname==='/api/sales')return send(200,service.history());
         if(/^\/api\/sales\/\d+$/.test(url.pathname))return send(200,service.receipt(Number(url.pathname.split('/').at(-1))));

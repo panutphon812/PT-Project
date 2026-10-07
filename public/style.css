@@ -170,6 +170,13 @@ footer { color: #897c99; padding-top: 6px; }
 @media(prefers-reduced-motion:reduce) { * { transition: none !important; } }
 @media print { main, aside { display: none; } dialog { border: 0; box-shadow: none; } }
 
+.basket-filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; align-items: end; margin-bottom: 20px; }
+.basket-explanation { margin-top: 20px; }
+.basket-explanation p { line-height: 1.9; }
+.basket-explanation a { color: #6846be; text-decoration: underline; }
+[data-page=basket] .table-wrap table { white-space: normal; min-width: 700px; }
+#basket-checks table { white-space: normal; min-width: 650px; }
+@media(max-width:650px) { .basket-filters { grid-template-columns: 1fr 1fr; } .basket-filters button { grid-column: 1 / -1; } }
 /* Readable text at desktop and small-screen sizes. */
 :root { font-family: Tahoma, Arial, sans-serif; font-size: 16px; --muted: #655d74; }
 .brand-mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; flex-shrink: 0; }

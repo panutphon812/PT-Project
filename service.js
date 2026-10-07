@@ -1,4 +1,5 @@
 import { transaction, bangkokDate } from './db.js';
+import { basketReport } from './basket.js';
 
 function fail(message) { throw new Error(message); }
 function integer(value, min, max, label) {
@@ -32,6 +33,7 @@ export function createService(db) {
   };
   return {
     products() { return db.prepare('SELECT * FROM products ORDER BY id').all(); },
+    baskets(days=28, options={}, now=new Date()) { return basketReport(db,days,options,now); },
     recommendations(windowDays=28, now=new Date()) {
       integer(windowDays,1,90,'ช่วงย้อนหลัง');
       // Completed Bangkok calendar days only: zero-sale days stay in the denominator.
