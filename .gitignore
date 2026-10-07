@@ -1,2 +1,12 @@
 data/
 node_modules/
+.presentation-qa/
+documents/
+presentation/
+.env
+.env.*
+!.env.example
+backups/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
