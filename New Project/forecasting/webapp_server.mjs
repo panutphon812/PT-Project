@@ -1,0 +1,53 @@
+import http from 'node:http';
+import {readFile,mkdir,writeFile,rename} from 'node:fs/promises';
+import {dirname,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import vm from 'node:vm';
+const root=dirname(fileURLToPath(import.meta.url));
+const assets=resolve(root,'../Dataset/m5-forecasting-accuracy/ai_results');
+const engine=vm.createContext({});
+vm.runInContext(await readFile(resolve(root,'import_data.js'),'utf8')+`;function shift(v,n){const d=new Date(v+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};globalThis.engine={parseSalesCSV,trainImported,infer};`,engine);
+export async function createApp(storage=resolve(root,'../../data/forecast-webapp')){
+ await mkdir(storage,{recursive:true});const stateFile=resolve(storage,'workspace.json');
+ let state={dataset:null,purchases:[]};try{state=JSON.parse(await readFile(stateFile,'utf8'))}catch(e){if(e.code!=='ENOENT')throw new Error('ไฟล์ข้อมูลที่บันทึกไว้เสียหาย กรุณาตรวจไฟล์ก่อนเปิดระบบ',{cause:e})}
+ let writes=Promise.resolve();
+ const save=()=>{const json=JSON.stringify(state);writes=writes.catch(()=>{}).then(async()=>{const temp=stateFile+'.tmp';await writeFile(temp,json,'utf8');await rename(temp,stateFile)});return writes};
+ return http.createServer(async(req,res)=>{
+  const send=(code,value)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value))};
+  try{
+   const url=new URL(req.url,'http://localhost');
+   if(req.headers.host&&!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host))return send(403,{error:'เปิดใช้งานผ่าน localhost เท่านั้น'});
+   if(req.method==='POST'){
+    if(req.headers['x-forecast-app']!=='1'||(req.headers.origin&&req.headers.origin!==`http://${req.headers.host}`))return send(403,{error:'คำขอไม่ได้มาจากเว็บแอปนี้'});
+    let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>5*1024*1024)return send(413,{error:'ข้อมูลต้องไม่เกิน 5 MB'});chunks.push(chunk)}
+    const body=Buffer.concat(chunks).toString('utf8');
+    if(url.pathname==='/api/import'){
+     const models=engine.engine.trainImported(engine.engine.parseSalesCSV(body));
+     const previous=state;state={...state,dataset:{name:'ข้อมูลยอดขายนำเข้า',savedAt:new Date().toISOString(),models}};
+     try{await save()}catch(e){state=previous;throw e}return send(200,state.dataset);
+    }
+    if(url.pathname==='/api/reset'){const previous=state;state={...state,dataset:null};try{await save()}catch(e){state=previous;throw e}return send(200,{ok:true})}
+    if(url.pathname==='/api/purchases'){
+     const input=JSON.parse(body);const {item,date,stock,pack}=input;
+     if(!Number.isSafeInteger(stock)||stock<0||stock>1e6||!Number.isSafeInteger(pack)||pack<1||pack>1e6)throw new Error('สต็อกหรือขนาดแพ็กไม่ถูกต้อง');
+     let prediction;
+     if(state.dataset){const m=state.dataset.models[item];if(!m||date!==m.max_date)throw new Error('เลือกวันถัดจากข้อมูลล่าสุดของสินค้า');prediction=engine.engine.infer(m,m.history,date)}
+     else{const page=await readFile(resolve(assets,'forecast_demo.html'),'utf8');const match=page.match(/const builtInModels\s*=\s*(\{.*?\});/s);if(!match)throw new Error('อ่านโมเดล M5 ไม่สำเร็จ');const m=JSON.parse(match[1])[item];if(!m||date!=='2016-05-23')throw new Error('วันหรือรหัสสินค้าไม่ถูกต้อง');prediction=engine.engine.infer(m,m.history,date)}
+     const packs=Math.ceil(Math.max(0,prediction-stock)/pack);const row={id:crypto.randomUUID(),savedAt:new Date().toISOString(),item,date,prediction,stock,pack,packs,units:packs*pack};
+     const previous=state;state={...state,purchases:[row,...state.purchases].slice(0,500)};try{await save()}catch(e){state=previous;throw e}return send(200,row);
+    }
+    return send(404,{error:'ไม่พบรายการ'});
+   }
+   if(req.method!=='GET')return send(405,{error:'ไม่รองรับคำขอนี้'});
+   if(url.pathname==='/api/workspace')return send(200,state);
+   const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html','/sample_sales_import.csv':'sample_sales_import.csv'};
+   if(url.pathname==='/webapp_client.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp_client.js')))}
+   const file=files[url.pathname];if(!file)return send(404,{error:'ไม่พบหน้า'});
+   let body=await readFile(resolve(assets,file),'utf8');
+   if(file==='forecast_demo.html')body=body.replace('Offline workspace','Web app · บันทึกข้อมูลได้').replace('ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า','ข้อมูลจะส่งไปฝึกบนเซิร์ฟเวอร์ในเครื่องและบันทึกไว้ เปิดหน้าใหม่แล้วใช้งานต่อได้').replace('</html>','<script src="/webapp_client.js"></script></html>');
+   res.writeHead(200,{'Content-Type':file.endsWith('.csv')?'text/csv; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(body);
+  }catch(e){sendError(res,e)}
+ });
+}
+function sendError(res,e){if(!res.headersSent){res.writeHead(e.code==='ENOENT'?503:400,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify({error:e.code==='ENOENT'?'ยังไม่มีชุดสาธิต กรุณาสร้าง forecast_demo.html ก่อน':e.message}))}else res.end()}
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){const port=Number(process.env.FORECAST_PORT||8768);(await createApp()).listen(port,'127.0.0.1',()=>console.log(`Forecast web app: http://127.0.0.1:${port}`))}

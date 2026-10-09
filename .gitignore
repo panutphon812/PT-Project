@@ -12,3 +12,4 @@ backups/
 *.sqlite-shm
 /New Project/Dataset/
 /New Project/forecasting/__pycache__/
+/New Project/Example format/
