@@ -12,42 +12,30 @@ function evidence(report){
 
 export async function renderBaskets(api){
   const content=document.querySelector('#content');
-  content.innerHTML=`<div class="hero"><div><h2>สินค้าอะไรที่มักซื้อในบิลเดียวกัน?</h2><p>สำรวจความสัมพันธ์เพื่อช่วยตรวจสต็อกสินค้าที่เกี่ยวข้อง</p></div></div>
-    <div class="panel"><form id="basket-filters" class="basket-filters">
-      <label>ช่วงย้อนหลัง<select name="days"><option value="7">7 วัน</option><option value="14">14 วัน</option><option value="28" selected>28 วัน</option><option value="90">90 วัน</option></select></label>
-      <label>จำนวนบิลขั้นต่ำ<input name="min_bills" type="number" min="1" step="1" value="20" required></label>
-      <label>บิลซื้อร่วมขั้นต่ำ<input name="min_pair_count" type="number" min="1" step="1" value="3" required></label>
-      <label>Support ขั้นต่ำ (%)<input name="min_support" type="number" min="0" max="100" step="0.1" value="1" required></label>
-      <label>Confidence ขั้นต่ำ (%)<input name="min_confidence" type="number" min="0" max="100" step="0.1" value="20" required></label>
-      <label>Lift ขั้นต่ำ<input name="min_lift" type="number" min="1" step="0.01" value="1.01" required></label>
-      <button>วิเคราะห์</button></form><div id="basket-results" role="status" aria-live="polite"></div></div>
-    <div class="panel basket-explanation"><h2>อ่านตัวเลขอย่างไร</h2>
-      <p><strong>A → B</strong> หมายถึงในบิลที่มี A พบ B ร่วมด้วย ไม่ได้หมายถึงซื้อ B ในครั้งถัดไป</p>
-      <p><strong>Support:</strong> บิลที่มีทั้ง A และ B ÷ บิลทั้งหมดในช่วงข้อมูล</p>
-      <p><strong>Confidence:</strong> บิลที่มีทั้ง A และ B ÷ บิลที่มี A (สลับทิศแล้วค่าอาจต่างกัน)</p>
-      <p><strong>Lift:</strong> Confidence ÷ สัดส่วนบิลที่มี B ค่ามากกว่า 1 หมายถึงพบร่วมมากกว่าที่คาดหากเป็นอิสระ ค่าใกล้ 1 อาจเกิดจาก B ขายบ่อยอยู่แล้ว</p>
-      <p>ใช้การนับคู่โดยตรงและสร้าง Association Rules ขนาด 1 → 1 ไม่ใช่ Apriori เต็มรูปแบบ ไม่ค้นชุด 3 สินค้าขึ้นไป เกณฑ์เริ่มต้นเป็นเกณฑ์สาธิต ปรับตามข้อมูลและแผนประเมินได้</p>
-      <p>ความสัมพันธ์ไม่ยืนยันเหตุเป็นผล ไม่ทำนายลูกค้ารายบุคคล และไม่เพิ่มจำนวนซื้อจากความสัมพันธ์</p>
-      <p class="hint">อ้างอิงแนวคิด Support/Confidence: <a href="https://sigmodrecord.org/1993/06/03/mining-association-rules-between-sets-of-items-in-large-databases/" target="_blank" rel="noopener">Agrawal, Imieliński &amp; Swami (1993)</a> · แนวทาง Apriori เพื่อเปรียบเทียบวิธี: <a href="https://www.vldb.org/conf/1994/P487.PDF" target="_blank" rel="noopener">Agrawal &amp; Srikant (1994)</a></p></div>`;
-  const form=document.querySelector('#basket-filters');
-  const area=document.querySelector('#basket-results');
-  let report=null, offset=0;
-  const draw=()=>{
+  content.innerHTML=`<div class="hero"><div><h2>ลูกค้าซื้ออะไรด้วยกันบ้าง?</h2><p>ช่วยเตือนให้ตรวจสินค้าที่เกี่ยวข้องเวลาจัดรายการเติม ไม่เพิ่มจำนวนซื้อให้อัตโนมัติ</p></div></div>
+  <div class="panel"><p>เลือกช่วงเวลาแล้วกดดูผล ระบบตั้งเกณฑ์ให้แล้ว ไม่ต้องรู้สูตรหรือกรอกตัวเลขทางสถิติ</p>
+  <form id="basket-filters"><div class="basket-simple-controls">
+  <label>ดูบิลย้อนหลัง<select name="days"><option value="7">7 วัน</option><option value="14">14 วัน</option><option value="28" selected>28 วัน</option><option value="90">90 วัน</option></select></label>
+  <label>ดูข้อมูลแบบไหน<select name="mode"><option value="recommend">คู่ที่มีหลักฐานพอให้ตรวจสต็อก</option><option value="explore">สำรวจคู่เบื้องต้น (ยังไม่ใช้ตัดสินใจซื้อ)</option></select></label><button>ดูสินค้าที่ซื้อด้วยกัน</button></div>
+  <details><summary>ตั้งค่าขั้นสูง · สำหรับผู้ดูแลหรือผู้ประเมิน</summary><p class="hint">ไม่จำเป็นต้องปรับสำหรับการใช้งานทั่วไป เกณฑ์เริ่มต้นยังต้องประเมินกับร้านจริง</p><div class="basket-filters">
+  ${[['min_bills','จำนวนบิลทั้งหมดขั้นต่ำ',20,1,1000000,1],['min_pair_count','จำนวนบิลซื้อร่วมขั้นต่ำ',3,1,1000000,1],['min_support','Support ขั้นต่ำ (%)',1,0,100,.1],['min_confidence','Confidence ขั้นต่ำ (%)',20,0,100,.1],['min_lift','Lift ขั้นต่ำ',1.01,1,1000000,.01]].map(([key,label,value,min,max,step])=>`<label>${label}<input name="${key}" type="number" value="${value}" min="${min}" max="${max}" step="${step}" required></label>`).join('')}</div></details></form>
+  <div id="basket-results" aria-live="polite"></div></div>
+  <div class="panel basket-explanation"><h2>ใช้หน้านี้ทำอะไร?</h2><p>เมื่อพบคู่สินค้า ให้ตรวจว่าตัวที่ซื้อร่วมยังมีของพอหรือไม่ แล้วเปิดหน้าแนะนำเติมสินค้าเพื่อดูจำนวนซื้อจากยอดขายและสต็อก อย่าใช้คู่ซื้อร่วมเป็นเหตุผลเพิ่มจำนวนซื้อทันที</p>
+  <details><summary>วิธีคำนวณและงานวิจัยอ้างอิง</summary><p>Support = บิลที่มีทั้งคู่ ÷ บิลทั้งหมด · Confidence = บิลที่มีทั้งคู่ ÷ บิลที่มีสินค้าตัวแรก · Lift = Confidence ÷ สัดส่วนบิลที่มีสินค้าตัวที่สอง</p><p>ใช้ Association Rules แบบนับคู่โดยตรง 1 → 1 ไม่ใช่ Apriori เต็มรูปแบบ ความสัมพันธ์ไม่ยืนยันเหตุเป็นผลและไม่ทำนายการซื้อครั้งถัดไป</p><p><a href="https://sigmodrecord.org/1993/06/03/mining-association-rules-between-sets-of-items-in-large-databases/" target="_blank" rel="noopener">Agrawal, Imieliński &amp; Swami (1993)</a> · <a href="https://www.vldb.org/conf/1994/P487.PDF" target="_blank" rel="noopener">Agrawal &amp; Srikant (1994)</a></p></details></div>`;
+  const form=content.querySelector('form'),area=content.querySelector('#basket-results');let report,offset=0,explore=false;
+  form.elements.mode.onchange=()=>{const preset=form.elements.mode.value==='explore'?[1,1,0,0,1]:[20,3,1,20,1.01];['min_bills','min_pair_count','min_support','min_confidence','min_lift'].forEach((key,i)=>form.elements[key].value=preset[i]);};
+  function draw(){
     if(!area.isConnected)return;
-    area.innerHTML=evidence(report)+`<p class="hint">ผ่านเกณฑ์ ${report.rules.length} กฎ (A → B และ B → A ตรวจแยกกัน) · คู่ที่พบก่อนคัด ${report.observed_pairs} คู่</p>`+
-      (report.rules.length?`<div class="table-wrap"><table><thead><tr><th>เมื่อซื้อ A → พบ B</th><th>บิลซื้อร่วม</th><th>Support</th><th>Confidence</th><th>Lift</th></tr></thead><tbody>${report.rules.slice(offset,offset+25).map(r=>`<tr><td>${esc(r.antecedent.name)} → ${esc(r.consequent.name)}<span class="sub">${esc(r.antecedent.sku)} → ${esc(r.consequent.sku)}</span><span class="sub">บิลที่มี A ${r.from_count} · บิลที่มี B ${r.to_count}</span></td><td>${r.pair_count} / ${report.total_bills}</td><td>${percent(r.support)}</td><td>${percent(r.confidence)}</td><td>${decimal(r.lift)} เท่า</td></tr>`).join('')}</tbody></table></div><div class="pagination"><span>${offset+1}–${Math.min(offset+25,report.rules.length)} / ${report.rules.length} กฎ · เรียง Lift แล้วจำนวนบิล</span><div class="two-actions"><button id="basket-prev" class="secondary small" ${offset===0?'disabled':''}>ก่อนหน้า</button><button id="basket-next" class="secondary small" ${offset+25>=report.rules.length?'disabled':''}>ถัดไป</button></div></div>`:`<div class="empty-cart"><strong>${emptyMessage(report)}</strong><p>เก็บบิลจริงเพิ่มเติมหรือทบทวนเกณฑ์ โดยไม่สร้างข้อมูลเพื่อให้ผลดูดี</p></div>`);
-    if(report.rules.length){document.querySelector('#basket-prev').onclick=()=>{offset-=25;draw();};document.querySelector('#basket-next').onclick=()=>{offset+=25;draw();};}
-  };
-  const load=async()=>{
-    const button=form.querySelector('button');button.disabled=true;
-    const params=new URLSearchParams(new FormData(form));
+    area.innerHTML=(explore?'<div class="check-note"><strong>ข้อมูลเบื้องต้น ยังไม่ใช่คำแนะนำซื้อ</strong><br>แสดงคู่ที่ผ่านเงื่อนไขสำรวจ แม้พบเพียงครั้งเดียว ค่าสูงจากบิลน้อยยังสรุปไม่ได้ และไม่เปลี่ยนคำแนะนำเติมสินค้า</div>':'')+evidence(report)+
+    (report.rules.length?`<h2>พบ ${report.rules.length} รายการให้ตรวจดู</h2><div class="table-wrap"><table><thead><tr><th>เมื่อซื้อสินค้านี้</th><th>ซื้ออะไรด้วย</th><th>พบร่วมกันแค่ไหน</th><th>นำไปใช้อย่างไร</th></tr></thead><tbody>${report.rules.slice(offset,offset+25).map(r=>`<tr><td>${esc(r.antecedent.name)}<span class="sub">${esc(r.antecedent.sku)}</span></td><td>${esc(r.consequent.name)}<span class="sub">เหลือ ${r.consequent.stock} ${esc(r.consequent.unit)}</span></td><td>พบร่วม ${r.pair_count} บิล จาก ${r.from_count} บิลที่ซื้อสินค้าตัวแรก<span class="sub">คิดเป็น ${percent(r.confidence)}</span><details><summary>ดูตัวเลขประกอบ</summary><p>Support ${percent(r.support)} · Confidence ${percent(r.confidence)} · Lift ${decimal(r.lift)}</p></details></td><td>${explore?'ใช้ดูข้อมูลก่อน ยังไม่ใช้ตัดสินใจซื้อ':'ถ้าจะเติมตัวแรก ให้ตรวจสต็อกตัวนี้ด้วย'}<span class="sub">ไม่เพิ่มจำนวนซื้ออัตโนมัติ</span></td></tr>`).join('')}</tbody></table></div><div class="pagination"><span>${offset+1}–${Math.min(offset+25,report.rules.length)} / ${report.rules.length} รายการ · สลับทิศสินค้าได้เป็นคนละรายการ</span><div class="two-actions"><button id="basket-prev" class="secondary" ${offset===0?'disabled':''}>ก่อนหน้า</button><button id="basket-next" class="secondary" ${offset+25>=report.rules.length?'disabled':''}>ถัดไป</button></div></div>`:
+    `<div class="empty-cart"><strong>${explore?'ยังไม่มีคู่ที่แสดงได้ในช่วงนี้':'ยังไม่มีคู่ที่มีหลักฐานพอให้แนะนำ'}</strong><p>มีบิลหลายสินค้า ${report.multi_item_bills} บิล จากทั้งหมด ${report.total_bills} บิล<br>พบคู่สินค้า ${report.observed_pairs} คู่ แต่ยังไม่ผ่านเกณฑ์ทั้งหมด ระบบจึงไม่เดาคำแนะนำให้<br>${explore?'เก็บบิลที่ขายหลายสินค้าจริงเพิ่มเติม':'ลองเลือก “สำรวจคู่เบื้องต้น” เพื่อดูคู่ที่พบ หรือสะสมบิลหลายสินค้าจริงเพิ่มเติม'}</p></div>`);
+    if(report.rules.length){area.querySelector('#basket-prev').onclick=()=>{offset-=25;draw();};area.querySelector('#basket-next').onclick=()=>{offset+=25;draw();};}
+  }
+  async function load(){const button=form.querySelector('button');button.disabled=true;button.textContent='กำลังอ่านบิล…';
+    const params=new URLSearchParams(new FormData(form));explore=params.get('mode')==='explore';params.delete('mode');
     for(const key of ['min_support','min_confidence'])params.set(key,Number(params.get(key))/100);
-    try{report=await api('baskets?'+params);offset=0;draw();}
-    catch(error){if(area.isConnected)area.textContent=error.message;}
-    finally{button.disabled=false;}
-  };
-  form.onsubmit=e=>{e.preventDefault();load();};
-  await load();
+    try{report=await api('baskets?'+params);offset=0;draw();}catch(error){if(area.isConnected)area.textContent='อ่านข้อมูลไม่ได้: '+error.message;}finally{button.disabled=false;button.textContent='ดูสินค้าที่ซื้อด้วยกัน';}}
+  form.onsubmit=e=>{e.preventDefault();load();};await load();
 }
 
 export async function renderBasketChecks(api,rows,days,navigate){

@@ -289,3 +289,10 @@ td .sub { font-size: 12px; color: #73647f; }
   .chart-label { font-size: 12px; height: 40px; }
   .chart-sku { font-size: 11px; }
 }
+.basket-simple-controls { display: grid; grid-template-columns: 1fr 2fr auto; align-items: end; gap: 16px; margin: 20px 0; }
+#basket-advanced { border-top: 1px solid #eee7f5; padding-top: 14px; margin-bottom: 22px; }
+#basket-results .empty-cart { padding: 24px; }
+#basket-results .empty-cart p { font-size: 14px; margin-top: 10px; line-height: 1.9; }
+#basket-results td { vertical-align: top; line-height: 1.8; }
+#basket-results td details { font-size: 12px; }
+@media(max-width:850px) { .basket-simple-controls { grid-template-columns: 1fr; } }
