@@ -138,7 +138,7 @@ def main():
             for i, date in enumerate(x.index[evaluation]):
                 records.append({"period": period, "date": date.strftime("%Y-%m-%d"), "item_id": item, "actual": int(actual[i]), **{name: float(values[i]) for name, values in estimates.items()}})
             if period == "test":
-                np.savez(OUTPUT/f"model_{item}.npz", center=model[0], scale=model[1], coefficients=model[2], features=np.array(x.columns), trained_until=str(train_end.date()))
+                np.savez(OUTPUT/f"model_{item}.npz", center=model[0], scale=model[1], coefficients=model[2], features=np.array(x.columns, dtype=str), trained_until=str(train_end.date()))
     predictions = pd.DataFrame(records).sort_values(["period", "date", "item_id"])
     assert len(predictions[predictions.period == "test"]) == 140
     assert len(predictions[predictions.period == "validation"]) == 280
@@ -158,3 +158,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

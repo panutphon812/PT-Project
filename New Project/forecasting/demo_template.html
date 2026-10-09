@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ทดลอง AI ทำนายยอดขาย</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f6fb;color:#172b46;font:16px/1.7 Tahoma,Arial,sans-serif}main{max-width:950px;margin:auto;padding:24px}h1{font-size:28px}h2{font-size:21px}.card{background:#fff;border:1px solid #dbe3ef;border-radius:14px;padding:24px;margin:20px 0}.inputs{display:flex;gap:18px;flex-wrap:wrap}label{display:block}input,select,button{font:inherit;padding:10px;border:1px solid #b8c7d9;border-radius:8px}button{background:#1857bf;color:#fff;cursor:pointer;margin-top:18px}button:disabled{opacity:.5;cursor:default}.number{font-size:42px;font-weight:bold;color:#1857bf}.note{font-size:14px;color:#51647c}table{width:100%;border-collapse:collapse}td,th{text-align:right;padding:8px;border-bottom:1px solid #e3eaf2}td:first-child,th:first-child{text-align:left}svg{width:100%;height:auto}.error{color:#b91c1c}[hidden]{display:none!important}a{color:#1857bf}@media(max-width:600px){main{padding:12px}.card{padding:16px}h1{font-size:23px}}
+</style>
+<main>
+<h1>ทดลอง AI ทำนายยอดขาย</h1>
+<p>เลือกสินค้าและวันที่ แล้วให้ AI คำนวณยอดขายที่คาดว่าจะขายได้ในวันนั้น</p>
+<div class="card">
+<div class="inputs"><div><label for="item">สินค้า</label><select id="item"></select></div><div><label for="date">วันที่ต้องการทำนาย</label><input type="date" id="date" min="2016-04-25" max="2016-05-23" value="2016-05-23" required></div></div>
+<p class="note">ข้อมูลตัวอย่าง M5 ร้าน CA_1 มีถึง 22 พฤษภาคม 2016 จึงทำนายวันถัดไปได้ถึง 23 พฤษภาคม 2016 หรือเลือกวันก่อนหน้าเพื่อทดลองเทียบยอดขายจริง</p>
+<button id="forecast">ทำนายยอดขาย</button> <button id="export" disabled>ดาวน์โหลดผล CSV</button>
+<p id="error" class="error" role="alert"></p>
+</div>
+<section id="result" class="card" hidden aria-live="polite">
+<h2 id="result-title"></h2><div class="number" id="prediction"></div>
+<p id="comparison"></p><p id="actual"></p>
+<p class="note" id="cutoff"></p>
+</section>
+<section class="card"><h2>ยอดขายย้อนหลัง 28 วันก่อนวันที่เลือก</h2><p id="history-label"></p><div id="chart"></div><details><summary>ดูตารางยอดขายย้อนหลัง</summary><table><thead><tr><th>วันที่</th><th>ขายได้ (หน่วย)</th></tr></thead><tbody id="history"></tbody></table></details></section>
+<div class="card"><h2>ผลทดสอบและขอบเขต</h2><p>ทดสอบย้อนหลัง 28 วัน รวม 140 คำทำนาย: AI คลาดเคลื่อนเฉลี่ย 4.74 หน่วย เทียบกับค่าเฉลี่ยย้อนหลัง 28 วันที่ 4.94 หน่วย ผลแต่ละสินค้าแตกต่างกัน</p><a href="forecast_report.html">เปิดรายงานผลทดสอบและกราฟเปรียบเทียบ</a><p class="note">ต้นแบบนี้ใช้ Linear Regression ที่ฝึกจากข้อมูลจริงของ M5 ทำนายล่วงหน้าหนึ่งวันโดยใช้ยอดขายถึงวันก่อนหน้า รหัสสินค้าไม่มีชื่อจริง ยังไม่ประเมินจำนวนสั่งซื้อ อายุสินค้า หรือวันพระของไทย</p></div>
+</main>
+<script>
+const models = __MODEL_DATA__;
+const item = document.getElementById('item'), date = document.getElementById('date');
+const byId = id => document.getElementById(id);
+let latestResult = null;
+Object.keys(models).forEach(code => {const option=document.createElement('option');option.value=code;option.textContent=code;item.append(option)});
+function shift(value,days){const d=new Date(value+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)}
+function context(){
+ const value=date.value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'2016-04-25'||value>'2016-05-23')throw new Error('กรุณาเลือกวันที่ระหว่าง 25 เมษายน ถึง 23 พฤษภาคม 2016');
+ const model=models[item.value];const days=Array.from({length:28},(_,i)=>shift(value,i-28));const values=days.map(d=>model.history[d]);
+ if(values.some(v=>!Number.isFinite(v)))throw new Error('ข้อมูลย้อนหลังไม่ครบ 28 วัน กรุณาเลือกวันที่ใหม่');
+ return {value,model,days,values};
+}
+function calculate(c){
+ const lag=n=>c.model.history[shift(c.value,-n)];const last7=c.values.slice(-7);const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+ const m7=mean(last7),m28=mean(c.values);const d=new Date(c.value+'T00:00:00Z');const weekday=(d.getUTCDay()+6)%7;
+ const doy=Math.floor((d-Date.UTC(d.getUTCFullYear(),0,1))/86400000)+1;
+ const x=[lag(1),lag(7),lag(14),lag(28),m7,m28,Math.sqrt(mean(last7.map(v=>(v-m7)**2))),...Array.from({length:6},(_,i)=>+(weekday===i+1)),Math.sin(2*Math.PI*doy/365.25),Math.cos(2*Math.PI*doy/365.25)];
+ const prediction=Math.max(0,c.model.coefficients[0]+x.reduce((s,v,i)=>s+(v-c.model.center[i])/c.model.scale[i]*c.model.coefficients[i+1],0));
+ if(!Number.isFinite(prediction))throw new Error('คำนวณไม่สำเร็จ กรุณาตรวจข้อมูลโมเดล');
+ return {prediction,m28};
+}
+function history(c){
+ byId('history-label').textContent=item.value+' · '+c.days[0]+' ถึง '+c.days[27];
+ byId('history').replaceChildren();c.days.forEach((d,i)=>{const tr=document.createElement('tr');[d,c.values[i]].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});byId('history').append(tr)});
+ const max=Math.max(...c.values,1)*1.1;const points=c.values.map((v,i)=>`${50+i*750/27},${220-v/max*190}`).join(' ');
+ byId('chart').innerHTML=`<svg viewBox="0 0 850 270" role="img" aria-label="กราฟยอดขายย้อนหลัง 28 วัน"><line x1="50" y1="220" x2="800" y2="220" stroke="#b8c7d9"/><text x="12" y="30">${Math.ceil(max)}</text><text x="24" y="220">0</text><polyline points="${points}" fill="none" stroke="#2563eb" stroke-width="3"/><text x="50" y="252">${c.days[0]}</text><text x="800" y="252" text-anchor="end">${c.days[27]}</text></svg>`;
+}
+function changed(){latestResult=null;byId('export').disabled=true;byId('result').hidden=true;byId('error').textContent='';try{history(context())}catch(e){byId('error').textContent=e.message;byId('chart').replaceChildren();byId('history').replaceChildren();byId('history-label').textContent=''}}
+item.addEventListener('change',changed);date.addEventListener('input',changed);
+byId('forecast').addEventListener('click',()=>{try{const c=context();const r=calculate(c);history(c);byId('error').textContent='';byId('result-title').textContent=`${item.value} · วันที่ ${c.value}`;byId('prediction').textContent=r.prediction.toFixed(2)+' หน่วย';byId('comparison').textContent='ค่าเฉลี่ยย้อนหลัง 28 วัน: '+r.m28.toFixed(2)+' หน่วย';const real=c.model.history[c.value];byId('actual').textContent=real===undefined?'ยังไม่มียอดขายจริงของวันนี้ จึงยังวัดความคลาดเคลื่อนไม่ได้':`ยอดขายจริง: ${real} หน่วย · คลาดเคลื่อน ${Math.abs(real-r.prediction).toFixed(2)} หน่วย`;byId('cutoff').textContent=`ใช้ยอดขายถึง ${shift(c.value,-1)} · โมเดลฝึกถึง ${c.model.trained_until} · คำทำนายเป็นค่าเฉลี่ยที่คาดหวัง จึงมีทศนิยมได้`;byId('result').hidden=false;latestResult={item:item.value,date:c.value,prediction:r.prediction,actual:real??'',mean28:r.m28};byId('export').disabled=false}catch(e){byId('error').textContent=e.message;byId('result').hidden=true;latestResult=null;byId('export').disabled=true}});
+byId('export').addEventListener('click',()=>{if(!latestResult)return;const r=latestResult;const csv='\uFEFFวันที่,รหัสสินค้า,AI ทำนาย,ขายจริง,ค่าเฉลี่ย 28 วัน\r\n'+[r.date,r.item,r.prediction.toFixed(6),r.actual,r.mean28.toFixed(6)].join(',')+'\r\n';const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`forecast_${r.item}_${r.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+changed();
+</script>
+</html>
+
