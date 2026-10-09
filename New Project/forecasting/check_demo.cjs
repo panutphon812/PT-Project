@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync(path.join(__dirname, '../Dataset/m5-forecasting-accuracy/ai_results/forecast_demo.html'), 'utf8');
-const data = html.match(/const models = (.*);\r?\n/)[1];
+const data = html.match(/const builtInModels = (.*);\r?\n/)[1];
 const functions = html.slice(html.indexOf('function shift('), html.indexOf('function history('));
 const sandbox = {};
 vm.createContext(sandbox);

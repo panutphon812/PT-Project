@@ -8,9 +8,16 @@
 <main>
 <h1>ทดลอง AI ทำนายยอดขาย</h1>
 <p>เลือกสินค้าและวันที่ แล้วให้ AI คำนวณยอดขายที่คาดว่าจะขายได้ในวันนั้น</p>
+<section class="card"><h2>นำเข้ายอดขายของคุณ</h2>
+<p>ใช้ไฟล์ CSV ที่มี 3 คอลัมน์: วันที่,รหัสสินค้า,จำนวนที่ขาย</p>
+<p class="note">วันที่ใช้ YYYY-MM-DD เช่น 2026-10-01 แต่ละสินค้าต้องมีอย่างน้อย 90 วันต่อเนื่อง รวมวันที่ขายได้ 0 หน่วย รองรับสูงสุด 20 สินค้าและ 20,000 แถว ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า</p>
+<a href="sample_sales_import.csv" download>ดาวน์โหลดไฟล์ตัวอย่างจาก M5 (5 สินค้า · 180 วัน)</a>
+<label for="csv-file">เลือกไฟล์ยอดขาย CSV</label><input type="file" id="csv-file" accept=".csv,text/csv">
+<button id="import">นำเข้าและฝึก AI</button> <button id="reset-data">กลับไปใช้ข้อมูล M5</button>
+<p id="import-status" role="status">กำลังใช้ข้อมูลตัวอย่าง M5</p><p id="import-error" class="error" role="alert"></p></section>
 <div class="card">
 <div class="inputs"><div><label for="item">สินค้า</label><select id="item"></select></div><div><label for="date">วันที่ต้องการทำนาย</label><input type="date" id="date" min="2016-04-25" max="2016-05-23" value="2016-05-23" required></div></div>
-<p class="note">ข้อมูลตัวอย่าง M5 ร้าน CA_1 มีถึง 22 พฤษภาคม 2016 จึงทำนายวันถัดไปได้ถึง 23 พฤษภาคม 2016 หรือเลือกวันก่อนหน้าเพื่อทดลองเทียบยอดขายจริง</p>
+<p class="note" id="date-help">ข้อมูลตัวอย่าง M5 ร้าน CA_1 มีถึง 22 พฤษภาคม 2016 จึงทำนายวันถัดไปได้ถึง 23 พฤษภาคม 2016 หรือเลือกวันก่อนหน้าเพื่อทดลองเทียบยอดขายจริง</p>
 <button id="forecast">ทำนายยอดขาย</button> <button id="export" disabled>ดาวน์โหลดผล CSV</button>
 <p id="error" class="error" role="alert"></p>
 </div>
@@ -20,28 +27,30 @@
 <p class="note" id="cutoff"></p>
 </section>
 <section class="card"><h2>ยอดขายย้อนหลัง 28 วันก่อนวันที่เลือก</h2><p id="history-label"></p><div id="chart"></div><details><summary>ดูตารางยอดขายย้อนหลัง</summary><table><thead><tr><th>วันที่</th><th>ขายได้ (หน่วย)</th></tr></thead><tbody id="history"></tbody></table></details></section>
-<div class="card"><h2>ผลทดสอบและขอบเขต</h2><p>ทดสอบย้อนหลัง 28 วัน รวม 140 คำทำนาย: AI คลาดเคลื่อนเฉลี่ย 4.74 หน่วย เทียบกับค่าเฉลี่ยย้อนหลัง 28 วันที่ 4.94 หน่วย ผลแต่ละสินค้าแตกต่างกัน</p><a href="forecast_report.html">เปิดรายงานผลทดสอบและกราฟเปรียบเทียบ</a><p class="note">ต้นแบบนี้ใช้ Linear Regression ที่ฝึกจากข้อมูลจริงของ M5 ทำนายล่วงหน้าหนึ่งวันโดยใช้ยอดขายถึงวันก่อนหน้า รหัสสินค้าไม่มีชื่อจริง ยังไม่ประเมินจำนวนสั่งซื้อ อายุสินค้า หรือวันพระของไทย</p></div>
+<div class="card"><h2>ผลทดสอบและขอบเขต</h2><p id="test-summary">ทดสอบย้อนหลัง 28 วัน รวม 140 คำทำนาย: AI คลาดเคลื่อนเฉลี่ย 4.74 หน่วย เทียบกับค่าเฉลี่ยย้อนหลัง 28 วันที่ 4.94 หน่วย ผลแต่ละสินค้าแตกต่างกัน</p><a id="m5-report" href="forecast_report.html">เปิดรายงานผลทดสอบและกราฟเปรียบเทียบ</a><button id="export-test" hidden>ดาวน์โหลดผลทดสอบย้อนหลัง CSV</button><p class="note" id="method-note">ต้นแบบ M5 ใช้ Linear Regression ทำนายล่วงหน้าหนึ่งวันโดยใช้ยอดขายถึงวันก่อนหน้า ยังไม่ประเมินจำนวนสั่งซื้อ อายุสินค้า หรือวันพระของไทย</p></div>
 </main>
 <script>
-const models = __MODEL_DATA__;
+const builtInModels = __MODEL_DATA__;
+let models = builtInModels;
+let imported = false;
 const item = document.getElementById('item'), date = document.getElementById('date');
 const byId = id => document.getElementById(id);
 let latestResult = null;
-Object.keys(models).forEach(code => {const option=document.createElement('option');option.value=code;option.textContent=code;item.append(option)});
+function populate(){item.replaceChildren();Object.keys(models).forEach(code=>{const option=document.createElement('option');option.value=code;option.textContent=code;item.append(option)});setRange()}
+function setRange(){const m=models[item.value];date.min=m.min_date||'2016-04-25';date.max=m.max_date||'2016-05-23';date.value=date.max;if(imported)byId('date-help').textContent=`ข้อมูล ${item.value} มีถึง ${m.last_date} ทำนายวันถัดไปได้ ${m.max_date} หรือเลือก ${m.min_date} ถึง ${m.last_date} เพื่อเทียบกับยอดขายจริง`;changed();updateScores()}
 function shift(value,days){const d=new Date(value+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)}
+__IMPORT_FUNCTIONS__
 function context(){
  const value=date.value;
- if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'2016-04-25'||value>'2016-05-23')throw new Error('กรุณาเลือกวันที่ระหว่าง 25 เมษายน ถึง 23 พฤษภาคม 2016');
- const model=models[item.value];const days=Array.from({length:28},(_,i)=>shift(value,i-28));const values=days.map(d=>model.history[d]);
+ const base=models[item.value];const min=base.min_date||'2016-04-25',max=base.max_date||'2016-05-23';
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<min||value>max)throw new Error(`กรุณาเลือกวันที่ระหว่าง ${min} ถึง ${max}`);
+ const model=base.evaluation&&value<=base.last_date?{...base.evaluation,history:base.history}:base;
+ const days=Array.from({length:28},(_,i)=>shift(value,i-28));const values=days.map(d=>model.history[d]);
  if(values.some(v=>!Number.isFinite(v)))throw new Error('ข้อมูลย้อนหลังไม่ครบ 28 วัน กรุณาเลือกวันที่ใหม่');
  return {value,model,days,values};
 }
 function calculate(c){
- const lag=n=>c.model.history[shift(c.value,-n)];const last7=c.values.slice(-7);const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
- const m7=mean(last7),m28=mean(c.values);const d=new Date(c.value+'T00:00:00Z');const weekday=(d.getUTCDay()+6)%7;
- const doy=Math.floor((d-Date.UTC(d.getUTCFullYear(),0,1))/86400000)+1;
- const x=[lag(1),lag(7),lag(14),lag(28),m7,m28,Math.sqrt(mean(last7.map(v=>(v-m7)**2))),...Array.from({length:6},(_,i)=>+(weekday===i+1)),Math.sin(2*Math.PI*doy/365.25),Math.cos(2*Math.PI*doy/365.25)];
- const prediction=Math.max(0,c.model.coefficients[0]+x.reduce((s,v,i)=>s+(v-c.model.center[i])/c.model.scale[i]*c.model.coefficients[i+1],0));
+ const prediction=infer(c.model,c.model.history,c.value),m28=featureVector(c.model.history,c.value)[5];
  if(!Number.isFinite(prediction))throw new Error('คำนวณไม่สำเร็จ กรุณาตรวจข้อมูลโมเดล');
  return {prediction,m28};
 }
@@ -52,10 +61,34 @@ function history(c){
  byId('chart').innerHTML=`<svg viewBox="0 0 850 270" role="img" aria-label="กราฟยอดขายย้อนหลัง 28 วัน"><line x1="50" y1="220" x2="800" y2="220" stroke="#b8c7d9"/><text x="12" y="30">${Math.ceil(max)}</text><text x="24" y="220">0</text><polyline points="${points}" fill="none" stroke="#2563eb" stroke-width="3"/><text x="50" y="252">${c.days[0]}</text><text x="800" y="252" text-anchor="end">${c.days[27]}</text></svg>`;
 }
 function changed(){latestResult=null;byId('export').disabled=true;byId('result').hidden=true;byId('error').textContent='';try{history(context())}catch(e){byId('error').textContent=e.message;byId('chart').replaceChildren();byId('history').replaceChildren();byId('history-label').textContent=''}}
-item.addEventListener('change',changed);date.addEventListener('input',changed);
+item.addEventListener('change',()=>{if(imported)setRange();else changed()});date.addEventListener('input',changed);
 byId('forecast').addEventListener('click',()=>{try{const c=context();const r=calculate(c);history(c);byId('error').textContent='';byId('result-title').textContent=`${item.value} · วันที่ ${c.value}`;byId('prediction').textContent=r.prediction.toFixed(2)+' หน่วย';byId('comparison').textContent='ค่าเฉลี่ยย้อนหลัง 28 วัน: '+r.m28.toFixed(2)+' หน่วย';const real=c.model.history[c.value];byId('actual').textContent=real===undefined?'ยังไม่มียอดขายจริงของวันนี้ จึงยังวัดความคลาดเคลื่อนไม่ได้':`ยอดขายจริง: ${real} หน่วย · คลาดเคลื่อน ${Math.abs(real-r.prediction).toFixed(2)} หน่วย`;byId('cutoff').textContent=`ใช้ยอดขายถึง ${shift(c.value,-1)} · โมเดลฝึกถึง ${c.model.trained_until} · คำทำนายเป็นค่าเฉลี่ยที่คาดหวัง จึงมีทศนิยมได้`;byId('result').hidden=false;latestResult={item:item.value,date:c.value,prediction:r.prediction,actual:real??'',mean28:r.m28};byId('export').disabled=false}catch(e){byId('error').textContent=e.message;byId('result').hidden=true;latestResult=null;byId('export').disabled=true}});
-byId('export').addEventListener('click',()=>{if(!latestResult)return;const r=latestResult;const csv='\uFEFFวันที่,รหัสสินค้า,AI ทำนาย,ขายจริง,ค่าเฉลี่ย 28 วัน\r\n'+[r.date,r.item,r.prediction.toFixed(6),r.actual,r.mean28.toFixed(6)].join(',')+'\r\n';const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`forecast_${r.item}_${r.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
-changed();
+function downloadCSV(rows,name){const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n')+'\r\n';const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+byId('export').addEventListener('click',()=>{if(!latestResult)return;const r=latestResult;downloadCSV([['วันที่','รหัสสินค้า','AI ทำนาย','ขายจริง','ค่าเฉลี่ย 28 วัน'],[r.date,r.item,r.prediction.toFixed(6),r.actual,r.mean28.toFixed(6)]],`forecast_${r.date}.csv`)});
+function updateScores(){
+ byId('m5-report').hidden=imported;byId('export-test').hidden=!imported;
+ if(!imported){byId('test-summary').textContent='ทดสอบย้อนหลัง 28 วัน รวม 140 คำทำนาย: AI คลาดเคลื่อนเฉลี่ย 4.74 หน่วย เทียบกับค่าเฉลี่ยย้อนหลัง 28 วันที่ 4.94 หน่วย ผลแต่ละสินค้าแตกต่างกัน';return}
+ const m=models[item.value];byId('test-summary').textContent=`${item.value} · ทดสอบ 28 วัน (${m.min_date} ถึง ${m.last_date}) · AI คลาดเคลื่อนเฉลี่ย ${m.mae.toFixed(2)} หน่วย · ค่าเฉลี่ยย้อนหลัง 28 วันคลาดเคลื่อน ${m.baselineMAE.toFixed(2)} หน่วย · ${m.mae<m.baselineMAE?'AI คลาดเคลื่อนน้อยกว่า':m.mae>m.baselineMAE?'AI ยังคลาดเคลื่อนมากกว่า':'ทั้งสองวิธีคลาดเคลื่อนเท่ากัน'}`;
+}
+byId('export-test').addEventListener('click',()=>{if(!imported)return;downloadCSV([['วันที่','รหัสสินค้า','ขายจริง','AI ทำนาย','ค่าเฉลี่ย 28 วัน','วันสุดท้ายที่ฝึกโมเดล'],...Object.entries(models).flatMap(([code,m])=>m.test.map(r=>[r.date,code,r.actual,r.prediction.toFixed(6),r.baseline.toFixed(6),m.evaluation.trained_until]))],'backtest_imported.csv')});
+const m5Help=byId('date-help').textContent,m5Note=byId('method-note').textContent;
+byId('import').addEventListener('click',async()=>{
+ const file=byId('csv-file').files[0];byId('import-error').textContent='';
+ if(!file){byId('import-error').textContent='กรุณาเลือกไฟล์ CSV ก่อน';return}
+ if(file.size>5*1024*1024){byId('import-error').textContent='ไฟล์ต้องมีขนาดไม่เกิน 5 MB';return}
+ const controls=['import','reset-data','forecast','export','export-test','item','date','csv-file'];controls.forEach(id=>byId(id).disabled=true);
+ byId('import-status').textContent='กำลังตรวจข้อมูลและฝึก AI กรุณารอสักครู่…';
+ try{
+  const text=await file.text();await new Promise(resolve=>setTimeout(resolve,30));
+  const groups=parseSalesCSV(text);const trained=trainImported(groups);
+  models=trained;imported=true;populate();
+  byId('import-status').textContent=`นำเข้า ${file.name} สำเร็จ · ${Object.keys(models).length} สินค้า · ฝึกโมเดลใหม่แล้ว`;
+  byId('method-note').textContent='ข้อมูลนำเข้าใช้ Ridge Regression ซึ่งเป็นวิธีถดถอยเชิงเส้นที่ช่วยให้โมเดลเรียนรู้จากข้อมูลสั้นได้มั่นคงขึ้น กัน 28 วันสุดท้ายไว้ทดสอบ และใช้ยอดขายจริงถึงวันก่อนหน้าในการทำนายทีละวัน ส่วนการทำนายวันถัดไปใช้โมเดลที่ฝึกใหม่ด้วยข้อมูลทั้งหมด ผลทดสอบจึงเป็นผลของโมเดลก่อนฝึกครั้งสุดท้าย ยังไม่มีการแนะนำจำนวนซื้อ';
+ }catch(e){byId('import-error').textContent=e.message||'อ่านไฟล์ไม่สำเร็จ';byId('import-status').textContent='นำเข้าไม่สำเร็จ ยังใช้ชุดข้อมูลเดิมอยู่'}
+ finally{controls.forEach(id=>byId(id).disabled=false);byId('export').disabled=!latestResult}
+});
+byId('reset-data').addEventListener('click',()=>{models=builtInModels;imported=false;byId('date-help').textContent=m5Help;byId('method-note').textContent=m5Note;byId('import-status').textContent='กำลังใช้ข้อมูลตัวอย่าง M5';byId('import-error').textContent='';byId('csv-file').value='';populate()});
+populate();
 </script>
 </html>
 

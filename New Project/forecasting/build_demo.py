@@ -31,7 +31,14 @@ def main():
                 'trained_until': str(saved['trained_until']),
             }
     template = (DATA.parent.parent / 'forecasting' / 'demo_template.html').read_text(encoding='utf-8')
-    (OUTPUT / 'forecast_demo.html').write_text(template.replace('__MODEL_DATA__', json.dumps(payload, ensure_ascii=False, allow_nan=False)), encoding='utf-8')
+    imports = (DATA.parent.parent / 'forecasting' / 'import_data.js').read_text(encoding='utf-8')
+    page = template.replace('__MODEL_DATA__', json.dumps(payload, ensure_ascii=False, allow_nan=False)).replace('__IMPORT_FUNCTIONS__', imports)
+    (OUTPUT / 'forecast_demo.html').write_text(page, encoding='utf-8')
+    # Real M5 rows for a reproducible import demonstration; not invented shop data.
+    sample = frame[frame.date >= '2015-11-25'].sort_values(['date', 'item_id'])
+    assert len(sample) == 180 * 5
+    sample.columns = ['วันที่', 'รหัสสินค้า', 'จำนวนที่ขาย']
+    sample.to_csv(OUTPUT / 'sample_sales_import.csv', index=False, encoding='utf-8-sig')
     print('Created forecast_demo.html: 5 saved models, offline next-day inference.')
 
 
