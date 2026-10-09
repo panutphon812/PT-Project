@@ -33,6 +33,12 @@ def main():
     template = (DATA.parent.parent / 'forecasting' / 'demo_template.html').read_text(encoding='utf-8')
     imports = (DATA.parent.parent / 'forecasting' / 'import_data.js').read_text(encoding='utf-8')
     page = template.replace('__MODEL_DATA__', json.dumps(payload, ensure_ascii=False, allow_nan=False)).replace('__IMPORT_FUNCTIONS__', imports)
+    tested = pd.read_csv(OUTPUT / 'predictions.csv')
+    tested = tested[tested.period == 'test']
+    wape = 100 * (tested.linear_regression - tested.actual).abs().sum() / tested.actual.sum()
+    accuracy_note = f'M5 5 สินค้า · ทดสอบ 28 วัน (140 คำทำนาย) · MAE 4.74 หน่วย · RMSE 5.94 หน่วย · WAPE {wape:.2f}% · ลด MAE จากค่าเฉลี่ยย้อนหลัง 28 วันได้ 4.1%'
+    page = page.replace('__ACCURACY_NOTE__', accuracy_note)
+    print(f'M5 test WAPE: {wape:.6f}%')
     (OUTPUT / 'forecast_demo.html').write_text(page, encoding='utf-8')
     # Real M5 rows for a reproducible import demonstration; not invented shop data.
     sample = frame[frame.date >= '2015-11-25'].sort_values(['date', 'item_id'])
