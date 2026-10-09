@@ -38,6 +38,8 @@ def main():
     wape = 100 * (tested.linear_regression - tested.actual).abs().sum() / tested.actual.sum()
     accuracy_note = f'M5 5 สินค้า · ทดสอบ 28 วัน (140 คำทำนาย) · MAE 4.74 หน่วย · RMSE 5.94 หน่วย · WAPE {wape:.2f}% · ลด MAE จากค่าเฉลี่ยย้อนหลัง 28 วันได้ 4.1%'
     page = page.replace('__ACCURACY_NOTE__', accuracy_note)
+    theme = (DATA.parent.parent / 'forecasting' / 'theme.css').read_text(encoding='utf-8')
+    page = page.replace('__THEME_CSS__', theme)
     print(f'M5 test WAPE: {wape:.6f}%')
     (OUTPUT / 'forecast_demo.html').write_text(page, encoding='utf-8')
     # Real M5 rows for a reproducible import demonstration; not invented shop data.
