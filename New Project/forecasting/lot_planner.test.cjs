@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),vm=require('node:vm');
+const context={module:{exports:{}}};vm.createContext(context);vm.runInContext(fs.readFileSync(__dirname+'/lot_planner.js','utf8'),context);
+const {planLots}=context.module.exports;
+const model={history:{'2016-05-22':5},trained_until:'2016-04-24'};
+const constant=(m,h,d)=>{assert.ok(!Object.hasOwn(h,d));return 5};
+let r=planLots(model,{lead:2,shelf:3,pack:6},[{qty:6,expires:'2016-05-23'},{qty:4,expires:'2016-05-26'}],constant);
+assert.equal(r.arrival,'2016-05-25');assert.equal(r.expiry,'2016-05-27');assert.equal(r.waitShortage,1);assert.equal(r.expired,1);assert.equal(r.need,15);assert.equal(r.units,18);assert.equal(r.packExcess,3);
+r=planLots(model,{lead:0,shelf:2,pack:1},[{qty:10,expires:'2016-05-24'}],constant);assert.equal(r.units,0);assert.equal(r.waitShortage,0);
+r=planLots(model,{lead:0,shelf:1,pack:1},[{qty:10,expires:'2016-05-22'}],constant);assert.equal(r.units,5);assert.equal(r.expired,10);
+assert.throws(()=>planLots(model,{lead:1,shelf:2,pack:0},[],constant));
+assert.throws(()=>planLots(model,{lead:1,shelf:2,pack:1},[{qty:2,expires:'2016-02-30'}],constant));
+assert.deepEqual(model.history,{'2016-05-22':5});
+console.log('PASS: FEFO, expiry boundaries, transit shortage, same-day receipt, pack rounding, validation and unchanged history');

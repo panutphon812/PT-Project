@@ -41,12 +41,12 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
    if(req.method!=='GET')return send(405,{error:'ไม่รองรับคำขอนี้'});
    if(url.pathname==='/api/workspace'){await mutations;return send(200,{dataset:null,purchases:state.purchases})}
    const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html','/improvement_report.html':'improvement_report.html','/calendar_report.html':'calendar_report.html','/boosting_report.html':'boosting_report.html','/price_report.html':'price_report.html','/rolling_report.html':'rolling_report.html','/rolling_predictions.csv':'rolling_predictions.csv'};
-   if(['/simulation.js','/simulation_ui.js'].includes(url.pathname)){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end(await readFile(resolve(root,url.pathname.slice(1))))}
+   if(['/simulation.js','/simulation_ui.js','/lot_planner.js','/lot_planner_ui.js'].includes(url.pathname)){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end(await readFile(resolve(root,url.pathname.slice(1))))}
    if(url.pathname==='/webapp_client.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp_client.js')))}
    if(url.pathname==='/webapp.css'){res.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp.css')))}
    const file=files[url.pathname];if(!file)return send(404,{error:'ไม่พบหน้า'});
    let body=await readFile(resolve(assets,file),'utf8');
-   if(file==='forecast_demo.html')body=body.replace('<style>','<link rel="stylesheet" href="/webapp.css"><style>').replace('Offline workspace','Web app · บันทึกข้อมูลได้').replace('ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า','ข้อมูลจะส่งไปฝึกบนเซิร์ฟเวอร์ในเครื่องและบันทึกไว้ เปิดหน้าใหม่แล้วใช้งานต่อได้').replace('</html>','<script src="/webapp_client.js"></script></html>');
+   if(file==='forecast_demo.html')body=body.replace('<style>','<link rel="stylesheet" href="/webapp.css"><style>').replace('Offline workspace','Web app · บันทึกข้อมูลได้').replace('ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า','ข้อมูลจะส่งไปฝึกบนเซิร์ฟเวอร์ในเครื่องและบันทึกไว้ เปิดหน้าใหม่แล้วใช้งานต่อได้').replace('</html>','<script src="/webapp_client.js"></script><script src="/lot_planner.js"></script><script src="/lot_planner_ui.js"></script></html>');
    res.writeHead(200,{'Content-Type':file.endsWith('.csv')?'text/csv; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(body);
   }catch(e){sendError(res,e)}
  });
