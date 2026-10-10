@@ -11,4 +11,8 @@ r=planLots(model,{lead:0,shelf:1,pack:1},[{qty:10,expires:'2016-05-22'}],constan
 assert.throws(()=>planLots(model,{lead:1,shelf:2,pack:0},[],constant));
 assert.throws(()=>planLots(model,{lead:1,shelf:2,pack:1},[{qty:2,expires:'2016-02-30'}],constant));
 assert.deepEqual(model.history,{'2016-05-22':5});
+r=planLots(model,{lead:2,shelf:3,pack:1},[],constant,[{qty:25,arrives:'2016-05-23',expires:'2016-05-27'}]);assert.equal(r.units,0);assert.equal(r.waitShortage,0);
+r=planLots(model,{lead:2,shelf:3,pack:1},[],constant,[{qty:15,arrives:'2016-05-25',expires:'2016-05-27'}]);assert.equal(r.units,0);assert.equal(r.waitShortage,10);
+assert.throws(()=>planLots(model,{lead:2,shelf:3,pack:1},[],constant,[{qty:5,arrives:'2016-05-25',expires:'2016-05-24'}]));
+r=planLots(model,{lead:0,shelf:1,pack:1},[],constant,[{qty:20,arrives:'2016-05-23',expires:'2016-05-23'}]);assert.equal(r.units,0);assert.equal(r.expired,15);assert.equal(r.remaining,0);
 console.log('PASS: FEFO, expiry boundaries, transit shortage, same-day receipt, pack rounding, validation and unchanged history');

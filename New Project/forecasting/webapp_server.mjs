@@ -3,12 +3,14 @@ import {readFile,mkdir,writeFile,rename} from 'node:fs/promises';
 import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
+import {plannerStore} from './planner_store.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
 const assets=resolve(root,'../Dataset/m5-forecasting-accuracy/ai_results');
 const engine=vm.createContext({});
 vm.runInContext(await readFile(resolve(root,'import_data.js'),'utf8')+`;function shift(v,n){const d=new Date(v+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};globalThis.engine={parseSalesCSV,trainImported,infer};`,engine);
 export async function createApp(storage=resolve(root,'../../data/forecast-webapp')){
  await mkdir(storage,{recursive:true});const stateFile=resolve(storage,'workspace.json');
+ const plans=await plannerStore(storage);
  let state={dataset:null,purchases:[]};try{state=JSON.parse(await readFile(stateFile,'utf8'))}catch(e){if(e.code!=='ENOENT')throw new Error('ไฟล์ข้อมูลที่บันทึกไว้เสียหาย กรุณาตรวจไฟล์ก่อนเปิดระบบ',{cause:e})}
  let writes=Promise.resolve(),mutations=Promise.resolve();
  const save=()=>{const json=JSON.stringify(state);writes=writes.catch(()=>{}).then(async()=>{const temp=stateFile+'.tmp';await writeFile(temp,json,'utf8');await rename(temp,stateFile)});return writes};
@@ -23,6 +25,7 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
     const body=Buffer.concat(chunks).toString('utf8');
     const prior=mutations;let release;mutations=new Promise(r=>release=r);await prior;
     try{
+    if(url.pathname==='/api/lot-plans')return send(200,await plans.save(JSON.parse(body)));
     if(url.pathname==='/api/purchases'){
      const input=JSON.parse(body);const {item,date,stock,pack}=input;
      const datasetId='m5';
@@ -39,6 +42,7 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
     }finally{release()}
    }
    if(req.method!=='GET')return send(405,{error:'ไม่รองรับคำขอนี้'});
+   if(url.pathname==='/api/lot-plans'){await mutations;return send(200,plans.get())}
    if(url.pathname==='/api/workspace'){await mutations;return send(200,{dataset:null,purchases:state.purchases})}
    const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html','/improvement_report.html':'improvement_report.html','/calendar_report.html':'calendar_report.html','/boosting_report.html':'boosting_report.html','/price_report.html':'price_report.html','/rolling_report.html':'rolling_report.html','/rolling_predictions.csv':'rolling_predictions.csv'};
    if(['/simulation.js','/simulation_ui.js','/lot_planner.js','/lot_planner_ui.js'].includes(url.pathname)){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end(await readFile(resolve(root,url.pathname.slice(1))))}
