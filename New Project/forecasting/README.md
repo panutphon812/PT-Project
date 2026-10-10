@@ -150,3 +150,6 @@ MAE ต่ำกว่าหมายถึงคลาดเคลื่อน�
 
 ## ทดลองปรับความแม่นยำโดยไม่แก้ยอดขาย
 รัน improve_forecast.py เพื่อเลือกช่วงฝึกทั้งหมด/730/365/180/90 วันจาก validation 56 วันเท่านั้น และเปรียบเทียบ frozen one-step test เดิม 28 วัน ผลโมเดลทดลองและ CSV ทุกคำทำนายอยู่ใน ai_results และหน้า improvement_report.html คำนวณคะแนนจาก 140 แถวโดยตรง เก็บสินค้าที่แย่ลงด้วย ตรวจ SHA256 ต้นทางและไม่ใช้ target ของวันเป้าหมายเป็น feature ช่วง test นี้เคยรายงานแล้ว ห้ามอ้างว่าเป็น unseen holdout ใหม่ โมเดลหลักและ simulation ยังไม่ถูกแทนด้วยโมเดลทดลอง
+
+## ทดลองปฏิทินจริงและ chronological cross-validation
+รัน improve_forecast.py ก่อน แล้ว calendar_experiment.py และ check_calendar.py ใช้ calendar.csv จริง เพิ่ม 4 ประเภทกิจกรรม วันก่อน/หลังเหตุการณ์ และ snap_CA โดยสมมุติว่ารู้ปฏิทินล่วงหน้า ลอง base/calendar/calendar_snap × all/730/365 วัน เลือกจาก MAE 3 รอบ 28 วัน ฝึกถึง 31 ม.ค./28 ก.พ./27 มี.ค. 2016 เท่านั้น สุดท้ายฝึกถึง 24 เม.ย. ทดสอบ 28 วันเดิม ทุกแถวเก็บใน calendar_predictions.csv และ report แสดงผลที่แย่ลงด้วย คะแนนทดสอบเดิมไม่ใช่ unseen holdout ใหม่ โมเดลเว็บหลักและ simulation ไม่ถูกเปลี่ยน SNAP ไม่ใช่วันพระไทย ผลยังไม่ถึงเป้า WAPE 20% ข้อมูลและ artifacts อยู่ใน ai_results ที่ไม่ส่ง GitHub

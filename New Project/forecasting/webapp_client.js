@@ -22,3 +22,4 @@ models=builtInModels;imported=false;populate();
 byId('method-note').textContent=m5Note+' ระบบรอบนี้ใช้ข้อมูล M5 ที่เตรียมไว้ 5 สินค้า และ Linear Regression เท่านั้น';
 setBusy(true);
 api('/api/workspace').then(state=>showSaved(state.purchases)).catch(e=>{savedStatus.textContent='โหลดประวัติไม่ได้: '+e.message;datasetId='unavailable'}).finally(()=>setBusy(false));const experimentLink=document.createElement('a');experimentLink.href='/improvement_report.html';experimentLink.textContent='เปิดผลทดลองปรับช่วงฝึก Linear Regression ด้วยข้อมูลจริง →';experimentLink.style.display='block';experimentLink.style.marginTop='16px';byId('method-note').before(experimentLink);
+const calendarLink=document.createElement('a');calendarLink.href='/calendar_report.html';calendarLink.textContent='เปิดผลทดลองปฏิทิน M5 และตรวจสอบ 3 ช่วงเวลา →';calendarLink.style.display='block';calendarLink.style.marginTop='16px';experimentLink.after(calendarLink);
