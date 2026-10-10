@@ -153,3 +153,6 @@ MAE ต่ำกว่าหมายถึงคลาดเคลื่อน�
 
 ## ทดลองปฏิทินจริงและ chronological cross-validation
 รัน improve_forecast.py ก่อน แล้ว calendar_experiment.py และ check_calendar.py ใช้ calendar.csv จริง เพิ่ม 4 ประเภทกิจกรรม วันก่อน/หลังเหตุการณ์ และ snap_CA โดยสมมุติว่ารู้ปฏิทินล่วงหน้า ลอง base/calendar/calendar_snap × all/730/365 วัน เลือกจาก MAE 3 รอบ 28 วัน ฝึกถึง 31 ม.ค./28 ก.พ./27 มี.ค. 2016 เท่านั้น สุดท้ายฝึกถึง 24 เม.ย. ทดสอบ 28 วันเดิม ทุกแถวเก็บใน calendar_predictions.csv และ report แสดงผลที่แย่ลงด้วย คะแนนทดสอบเดิมไม่ใช่ unseen holdout ใหม่ โมเดลเว็บหลักและ simulation ไม่ถูกเปลี่ยน SNAP ไม่ใช่วันพระไทย ผลยังไม่ถึงเป้า WAPE 20% ข้อมูลและ artifacts อยู่ใน ai_results ที่ไม่ส่ง GitHub
+
+## ทดลอง Gradient Boosting (ไม่แทนโมเดลหลัก)
+ติดตั้ง scikit-learn ใน data/ml-experiment-libs (ไม่ส่ง GitHub) จากนั้นรัน boosting_experiment.py และ check_boosting.py หลังสร้าง calendar experiment ใช้ตัวแปรและช่วงฝึกเดียวกับ Linear ปฏิทิน ทดลอง Boosting 4 ค่าตั้ง เลือกจาก CV 3 รอบเดียวกัน random_state=812 ผลครบ 140 แถวอยู่ใน boosting_predictions.csv ตรวจยอดจริงกับต้นทางและ replay โมเดล joblib ที่สร้างเอง รอบนี้ Boosting CV แย่กว่า Linear ทุกตัว และคะแนน test รวมแย่กว่า จึงคง Linear ไว้ ไม่เลือกสลับโมเดลจากคะแนน test เพียงบางสินค้า ชุด test เดิมไม่ใช่ unseen holdout ใหม่ การทดลองชุดนี้ไม่ยืนยันว่า Gradient Boosting ทุกค่าตั้งจะด้อยกว่าเสมอ
