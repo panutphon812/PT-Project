@@ -40,7 +40,7 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
    }
    if(req.method!=='GET')return send(405,{error:'ไม่รองรับคำขอนี้'});
    if(url.pathname==='/api/workspace'){await mutations;return send(200,{dataset:null,purchases:state.purchases})}
-   const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html'};
+   const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html','/improvement_report.html':'improvement_report.html'};
    if(['/simulation.js','/simulation_ui.js'].includes(url.pathname)){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store'});return res.end(await readFile(resolve(root,url.pathname.slice(1))))}
    if(url.pathname==='/webapp_client.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp_client.js')))}
    if(url.pathname==='/webapp.css'){res.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp.css')))}
