@@ -46,7 +46,7 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
    if(url.pathname==='/webapp.css'){res.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp.css')))}
    const file=files[url.pathname];if(!file)return send(404,{error:'ไม่พบหน้า'});
    let body=await readFile(resolve(assets,file),'utf8');
-   if(file==='forecast_demo.html')body=body.replace('<style>','<link rel="stylesheet" href="/webapp.css"><style>').replace('Offline workspace','Web app · บันทึกข้อมูลได้').replace('ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า','ข้อมูลจะส่งไปฝึกบนเซิร์ฟเวอร์ในเครื่องและบันทึกไว้ เปิดหน้าใหม่แล้วใช้งานต่อได้').replace('</html>','<script src="/webapp_client.js"></script><script src="/simulation.js"></script><script src="/simulation_ui.js"></script></html>');
+   if(file==='forecast_demo.html')body=body.replace('<style>','<link rel="stylesheet" href="/webapp.css"><style>').replace('Offline workspace','Web app · บันทึกข้อมูลได้').replace('ข้อมูลจะประมวลผลในเครื่องและหายเมื่อปิดหรือรีโหลดหน้า','ข้อมูลจะส่งไปฝึกบนเซิร์ฟเวอร์ในเครื่องและบันทึกไว้ เปิดหน้าใหม่แล้วใช้งานต่อได้').replace('</html>','<script src="/webapp_client.js"></script></html>');
    res.writeHead(200,{'Content-Type':file.endsWith('.csv')?'text/csv; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(body);
   }catch(e){sendError(res,e)}
  });

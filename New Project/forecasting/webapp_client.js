@@ -27,3 +27,31 @@ const boostingLink=document.createElement('a');boostingLink.href='/boosting_repo
 const priceLink=document.createElement('a');priceLink.href='/price_report.html';priceLink.textContent='เจาะ FOODS_1_085 และทดลองราคาจริง →';priceLink.style.display='block';priceLink.style.marginTop='16px';boostingLink.after(priceLink);
 
 const rollingLink=document.createElement('a');rollingLink.href='/rolling_report.html';rollingLink.textContent='ทดสอบย้อนหลัง 12 ช่วง เทียบค่าเฉลี่ย 7 และ 28 วัน →';rollingLink.style.display='block';rollingLink.style.marginTop='16px';priceLink.after(rollingLink);
+
+// Keep the main workflow separate from archived model experiments.
+const archive=document.createElement('details');archive.className='experiment-archive';
+const archiveTitle=document.createElement('summary');archiveTitle.textContent='รายงานการทดลองที่ผ่านมา';archive.append(archiveTitle);
+const archiveNote=document.createElement('p');archiveNote.className='note';archiveNote.textContent='เก็บไว้เป็นหลักฐานการศึกษา ผลทดลองเหล่านี้ยังไม่ได้เปลี่ยนโมเดลหลักที่ใช้ทำนายบนเว็บ';archive.append(archiveNote);
+byId('method-note').before(archive);
+[experimentLink,calendarLink,boostingLink,priceLink,rollingLink].forEach(link=>archive.append(link));
+const scopeNote=document.createElement('div');scopeNote.className='info-strip scope-note';scopeNote.textContent='โหมดต้นแบบ M5 · ยอดขายล่าสุด 22 พ.ค. 2016 · วางแผนซื้อสำหรับ 23 พ.ค. 2016 ไม่ใช่ยอดขายร้านของคุณในปัจจุบัน';
+document.querySelector('[data-view="forecast"]').prepend(scopeNote);
+const purchaseHelp=document.createElement('p');purchaseHelp.className='note';purchaseHelp.setAttribute('role','status');
+const prepareButton=document.createElement('button');prepareButton.className='secondary';prepareButton.textContent='ไปทำนายวันถัดจากข้อมูลล่าสุด';
+prepareButton.addEventListener('click',()=>{date.value=date.max;changed();syncSave();showPage('forecast');byId('forecast').focus()});
+byId('purchase-context').after(purchaseHelp,prepareButton);
+function syncPurchaseHelp(){
+ const ready=!!latestResult&&latestResult.date===date.max;
+ byId('buy').disabled=busy||!ready;
+ purchaseHelp.textContent=ready?'พร้อมคำนวณ: กรอกสต็อกและขนาดแพ็ก แล้วกดแนะนำจำนวนซื้อ':`ต้องทำนายวันที่ ${date.max} ก่อน จึงจะคำนวณและบันทึกจำนวนซื้อได้`;
+ prepareButton.hidden=ready;
+}
+const previousSyncSave=syncSave;
+syncSave=function(){previousSyncSave();syncPurchaseHelp()};
+syncPurchaseHelp();
+const historyExport=document.createElement('button');historyExport.className='secondary';historyExport.textContent='ดาวน์โหลดประวัติคำแนะนำ CSV';historyExport.disabled=true;saveButton.after(historyExport);
+let savedRows=[];
+const previousShowSaved=showSaved;
+showSaved=function(rows){savedRows=rows;previousShowSaved(rows);historyExport.disabled=!rows.length};
+historyExport.addEventListener('click',()=>{if(!savedRows.length)return;downloadCSV([['บันทึกเมื่อ','วันเป้าหมาย','สินค้า','AI คาดยอดขาย','สต็อก','หน่วยต่อแพ็ก','จำนวนแพ็ก','จำนวนซื้อ'],...savedRows.map(r=>[r.savedAt,r.date,r.item,r.prediction,r.stock,r.pack,r.packs,r.units])],'purchase_history.csv')});
+const formula=document.createElement('p');formula.className='purchase-formula';formula.textContent='จำนวนซื้อ = ปัดขึ้นเป็นแพ็ก จากจำนวนที่คาดว่าจะขาย − สต็อกคงเหลือ (ถ้ามีของพอ ซื้อเพิ่ม 0 หน่วย)';byId('buy-result').after(formula);
