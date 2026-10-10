@@ -23,31 +23,24 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
     const body=Buffer.concat(chunks).toString('utf8');
     const prior=mutations;let release;mutations=new Promise(r=>release=r);await prior;
     try{
-    if(url.pathname==='/api/import'){
-     const models=engine.engine.trainImported(engine.engine.parseSalesCSV(body));
-     const previous=state;state={...state,dataset:{id:crypto.randomUUID(),name:'ข้อมูลยอดขายนำเข้า',savedAt:new Date().toISOString(),models}};
-     try{await save()}catch(e){state=previous;throw e}return send(200,state.dataset);
-    }
-    if(url.pathname==='/api/reset'){const previous=state;state={...state,dataset:null};try{await save()}catch(e){state=previous;throw e}return send(200,{ok:true})}
     if(url.pathname==='/api/purchases'){
      const input=JSON.parse(body);const {item,date,stock,pack}=input;
-     const datasetId=state.dataset?(state.dataset.id||state.dataset.savedAt):'m5';
+     const datasetId='m5';
      if(input.datasetId!==datasetId)throw new Error('ชุดข้อมูลเปลี่ยนจากอีกหน้าต่าง กรุณารีโหลดและทำนายใหม่ก่อนบันทึก');
      if(typeof input.requestId!=='string'||!/^[-a-f0-9]{36}$/.test(input.requestId))throw new Error('รหัสรายการบันทึกไม่ถูกต้อง');
      const existing=state.purchases.find(r=>r.requestId===input.requestId);if(existing){if(existing.item!==item||existing.date!==date||existing.stock!==stock||existing.pack!==pack)throw new Error('รหัสรายการนี้ถูกใช้กับคำแนะนำอื่นแล้ว');return send(200,existing)}
      if(!Number.isSafeInteger(stock)||stock<0||stock>1e6||!Number.isSafeInteger(pack)||pack<1||pack>1e6)throw new Error('สต็อกหรือขนาดแพ็กไม่ถูกต้อง');
      let prediction;
-     if(state.dataset){const m=state.dataset.models[item];if(!m||date!==m.max_date)throw new Error('เลือกวันถัดจากข้อมูลล่าสุดของสินค้า');prediction=engine.engine.infer(m,m.history,date)}
-     else{const page=await readFile(resolve(assets,'forecast_demo.html'),'utf8');const match=page.match(/const builtInModels\s*=\s*(\{.*?\});/s);if(!match)throw new Error('อ่านโมเดล M5 ไม่สำเร็จ');const m=JSON.parse(match[1])[item];if(!m||date!=='2016-05-23')throw new Error('วันหรือรหัสสินค้าไม่ถูกต้อง');prediction=engine.engine.infer(m,m.history,date)}
-     const packs=Math.ceil(Math.max(0,prediction-stock)/pack);const row={id:crypto.randomUUID(),requestId:input.requestId,datasetId,datasetName:state.dataset?'ข้อมูลนำเข้า':'M5 · CA_1',savedAt:new Date().toISOString(),item,date,prediction,stock,pack,packs,units:packs*pack};
+{const page=await readFile(resolve(assets,'forecast_demo.html'),'utf8');const match=page.match(/const builtInModels\s*=\s*(\{.*?\});/s);if(!match)throw new Error('อ่านโมเดล M5 ไม่สำเร็จ');const m=JSON.parse(match[1])[item];if(!m||date!=='2016-05-23')throw new Error('วันหรือรหัสสินค้าไม่ถูกต้อง');prediction=engine.engine.infer(m,m.history,date)}
+     const packs=Math.ceil(Math.max(0,prediction-stock)/pack);const row={id:crypto.randomUUID(),requestId:input.requestId,datasetId,datasetName:'M5 · CA_1',savedAt:new Date().toISOString(),item,date,prediction,stock,pack,packs,units:packs*pack};
      const previous=state;state={...state,purchases:[row,...state.purchases].slice(0,500)};try{await save()}catch(e){state=previous;throw e}return send(200,row);
     }
     return send(404,{error:'ไม่พบรายการ'});
     }finally{release()}
    }
    if(req.method!=='GET')return send(405,{error:'ไม่รองรับคำขอนี้'});
-   if(url.pathname==='/api/workspace'){await mutations;return send(200,state)}
-   const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html','/sample_sales_import.csv':'sample_sales_import.csv'};
+   if(url.pathname==='/api/workspace'){await mutations;return send(200,{dataset:null,purchases:state.purchases})}
+   const files={'/':'forecast_demo.html','/forecast_demo.html':'forecast_demo.html','/forecast_report.html':'forecast_report.html'};
    if(url.pathname==='/webapp_client.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp_client.js')))}
    if(url.pathname==='/webapp.css'){res.writeHead(200,{'Content-Type':'text/css; charset=utf-8'});return res.end(await readFile(resolve(root,'webapp.css')))}
    const file=files[url.pathname];if(!file)return send(404,{error:'ไม่พบหน้า'});
