@@ -25,3 +25,5 @@ api('/api/workspace').then(state=>showSaved(state.purchases)).catch(e=>{savedSta
 const calendarLink=document.createElement('a');calendarLink.href='/calendar_report.html';calendarLink.textContent='เปิดผลทดลองปฏิทิน M5 และตรวจสอบ 3 ช่วงเวลา →';calendarLink.style.display='block';calendarLink.style.marginTop='16px';experimentLink.after(calendarLink);
 const boostingLink=document.createElement('a');boostingLink.href='/boosting_report.html';boostingLink.textContent='เปิดผลเปรียบเทียบ Gradient Boosting กับ Linear →';boostingLink.style.display='block';boostingLink.style.marginTop='16px';calendarLink.after(boostingLink);
 const priceLink=document.createElement('a');priceLink.href='/price_report.html';priceLink.textContent='เจาะ FOODS_1_085 และทดลองราคาจริง →';priceLink.style.display='block';priceLink.style.marginTop='16px';boostingLink.after(priceLink);
+
+const rollingLink=document.createElement('a');rollingLink.href='/rolling_report.html';rollingLink.textContent='ทดสอบย้อนหลัง 12 ช่วง เทียบค่าเฉลี่ย 7 และ 28 วัน →';rollingLink.style.display='block';rollingLink.style.marginTop='16px';priceLink.after(rollingLink);

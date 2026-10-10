@@ -159,3 +159,6 @@ MAE ต่ำกว่าหมายถึงคลาดเคลื่อน�
 
 ## ทดลองราคาและตรวจ FOODS_1_085
 รัน price_experiment.py และ check_price.py หลัง calendar experiment ใช้ sell_prices.csv ร้าน CA_1 จริง เพิ่มราคาถึงวันก่อนหน้าและการเปลี่ยนราคาเทียบ 7/28 วัน ไม่ใช้ราคาปัจจุบันหรืออนาคต ไม่เติมราคา ไม่แก้ยอดขาย แถวฝึกที่ตัวแปรราคาไม่ครบเว้นเหมือนกันทั้งโมเดล แต่เก็บทดสอบครบ 140 แถว เทียบ Linear/ราคา/mean7 เลือกจาก CV 3 รอบด้วย tie rounding 8 หลักให้วิธีเดิมก่อน ราคาของ FOODS_1_085 ในช่วงทดสอบคงที่0.98 จึงราคาไม่ช่วยตัวนี้ mean7 ดีกว่า test แต่แย่กว่า CV จึงไม่สลับจาก test ผลรวมโมเดลราคา WAPE28.25 แต่วิธีที่เลือกจาก CV ยังคง28.83 เว็บหลักและsimulationไม่เปลี่ยน ไม่อ้างว่าศูนย์คือของขาด รายงาน price_report.html พร้อมวันพลาดสูงสุดและทุกแถวคะแนน ข้อมูลไม่ส่ง GitHub
+
+## Rolling retrospective evaluation
+Run rolling_backtest.py then check_rolling.py. Fixed original Linear Regression features, all training history before each block, 12 non-overlapping 28-day blocks ending 2016-05-22. Frozen weights per block with actual history through the previous day (one-step predictions). Compare mean7/mean28 without tuning or selecting models. Report /rolling_report.html and CSV /rolling_predictions.csv. This uses previously inspected M5 data; it is retrospective evidence, not a new unseen holdout. Main deployed model is unchanged. Generated outputs and sales stay outside Git.
