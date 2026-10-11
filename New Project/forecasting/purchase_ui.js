@@ -21,8 +21,8 @@ for(const [key,label,values,help] of purchaseFields){
  s.append(o)}s.onchange=()=>{purchaseExperiment=null;byId('pai-output').hidden=true};box.append(l,s,hint);byId('pai-inputs').append(box)
 }
 byId('pai-run').onclick=()=>{byId('pai-error').textContent='';try{
- const item=byId('pai-item').value,model={...builtInModels[item],...purchaseBundle.first[item]},history={...model.history},f=[];
- for(let i=0;i<7;i++){const date=shift(Object.keys(history).sort().at(-1),1),sales=infer(model,history,date);if(!Number.isFinite(sales))throw Error('คำนวณยอดขายไม่ได้');f.push(sales);history[date]=sales}
+ if(!sharedPurchaseForecast||sharedPurchaseForecast.item!==byId('pai-item').value)throw Error('กรุณาทำนายยอดขายในขั้นตอนที่ 1 ก่อน');
+ const item=sharedPurchaseForecast.item,f=[...sharedPurchaseForecast.forecast];
  const n=k=>Number(byId('pai-'+k).value),price=n('price'),distance=n('distance');
  const c={stock_qty:Math.round(f.reduce((a,b)=>a+b,0)/7*n('stock')),stock_life:n('life'),inbound_qty:n('inbound'),distance_km:distance,shelf_days:n('shelf'),pack_units:6,unit_cost:price,shortage_penalty:2*price,disposal_cost:.1*price,normal_fee:15+.4*distance,express_fee:40+.8*distance};
  const rows=purchaseCompare(f,c),date=d=>shift('2016-05-23',d),a=rows[0].action;

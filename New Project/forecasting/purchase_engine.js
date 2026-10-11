@@ -1,3 +1,10 @@
+function purchaseForecast(item,start='2016-05-23'){
+ const model={...builtInModels[item],...purchaseBundle.first[item]};
+ if(!purchaseBundle.first[item])throw Error('ไม่พบโมเดลสินค้า');
+ const history=Object.fromEntries(Object.entries(model.history).filter(([d])=>d<start)),f=[];
+ for(let i=0;i<7;i++){const day=shift(start,i),sales=infer(model,history,day);if(!Number.isFinite(sales))throw Error('คำนวณยอดขายไม่ได้');f.push(sales);history[day]=sales}
+ return {item,start,forecast:f,modelCutoff:'2014-12-31'};
+}
 function purchaseEvaluate(demand,c,a){
  const qty=a[0]*6,arrival=a[1]+(a[2]?1:3),expiry=arrival+c.shelf_days-1;
  const lots=[{q:c.stock_qty,e:c.stock_life-1},{q:0,e:4},{q:0,e:expiry}];
