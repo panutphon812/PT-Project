@@ -4,6 +4,7 @@ import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {plannerStore} from './planner_store.mjs';
+import {retailHandler} from './retail_server.mjs';
 const root=dirname(fileURLToPath(import.meta.url));
 const assets=resolve(root,'../Dataset/m5-forecasting-accuracy/ai_results');
 const engine=vm.createContext({});
@@ -11,14 +12,16 @@ vm.runInContext(await readFile(resolve(root,'import_data.js'),'utf8')+`;function
 export async function createApp(storage=resolve(root,'../../data/forecast-webapp')){
  await mkdir(storage,{recursive:true});const stateFile=resolve(storage,'workspace.json');
  const plans=await plannerStore(storage);
+ const retail=await retailHandler(resolve(storage,'retail-v1'));
  let state={dataset:null,purchases:[]};try{state=JSON.parse(await readFile(stateFile,'utf8'))}catch(e){if(e.code!=='ENOENT')throw new Error('ไฟล์ข้อมูลที่บันทึกไว้เสียหาย กรุณาตรวจไฟล์ก่อนเปิดระบบ',{cause:e})}
  let writes=Promise.resolve(),mutations=Promise.resolve();
  const save=()=>{const json=JSON.stringify(state);writes=writes.catch(()=>{}).then(async()=>{const temp=stateFile+'.tmp';await writeFile(temp,json,'utf8');await rename(temp,stateFile)});return writes};
- return http.createServer(async(req,res)=>{
+ const server=http.createServer(async(req,res)=>{
   const send=(code,value)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value))};
   try{
    const url=new URL(req.url,'http://localhost');
    if(req.headers.host&&!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host))return send(403,{error:'เปิดใช้งานผ่าน localhost เท่านั้น'});
+   if(await retail(req,res,url))return;
    if(req.method==='POST'){
     if(req.headers['x-forecast-app']!=='1'||(req.headers.origin&&req.headers.origin!==`http://${req.headers.host}`))return send(403,{error:'คำขอไม่ได้มาจากเว็บแอปนี้'});
     let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>5*1024*1024)return send(413,{error:'ข้อมูลต้องไม่เกิน 5 MB'});chunks.push(chunk)}
@@ -55,6 +58,7 @@ export async function createApp(storage=resolve(root,'../../data/forecast-webapp
    res.writeHead(200,{'Content-Type':file.endsWith('.csv')?'text/csv; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(body);
   }catch(e){sendError(res,e)}
  });
+ server.on('close',()=>retail.close());return server;
 }
 function sendError(res,e){if(!res.headersSent){res.writeHead(e.code==='ENOENT'?503:400,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify({error:e.code==='ENOENT'?'ยังไม่มีชุดสาธิต กรุณาสร้าง forecast_demo.html ก่อน':e.message}))}else res.end()}
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){const port=Number(process.env.FORECAST_PORT||8768);(await createApp()).listen(port,'127.0.0.1',()=>console.log(`Forecast web app: http://127.0.0.1:${port}`))}
